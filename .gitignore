@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.venv
+.env
+.venv/
+venv/
+
+# Snowflake / dbt
+profiles.yml
+dbt_modules/
+target/
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

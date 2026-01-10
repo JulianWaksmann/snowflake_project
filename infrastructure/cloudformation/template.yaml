@@ -1,0 +1,173 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Serverless Retail Data Pipeline: S3, Lambda, SNS, and IAM permissions.'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'retail-data-pipeline'
+    Description: 'Base name for resources.'
+  SnowflakeAccount:
+    Type: String
+    Description: 'Snowflake Account Locator (e.g., xy12345.us-east-1).'
+  SnowflakeUser:
+    Type: String
+    Default: 'LAMBDA_USER'
+    Description: 'User for Lambda to connect to Snowflake.'
+  SnowflakeRole:
+    Type: String
+    Default: 'SYSADMIN'
+    Description: 'Role for Lambda to use in Snowflake.'
+  SnowflakeWarehouse:
+    Type: String
+    Default: 'COMPUTE_WH'
+    Description: 'Warehouse for COPY INTO execution.'
+  SnowflakeDatabase:
+    Type: String
+    Default: 'RETAIL_DB'
+    Description: 'Target Database.'
+
+Resources:
+  # ==========================================
+  # 1. S3 BUCKET (Data Lake)
+  # ==========================================
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: inbox/
+            Function: !GetAtt IngestionLambda.Arn
+
+  # ==========================================
+  # 2. SNS TOPIC (Error Notifications)
+  # ==========================================
+  ErrorTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-errors'
+
+  # ==========================================
+  # 3. IAM ROLE FOR SNOWFLAKE (Storage Integration)
+  # ==========================================
+  SnowflakeAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-snowflake-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root' # Will be restricted to Snowflake User ARN later
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                Resource: !Sub '${DataBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - 's3:ListBucket'
+                  - 's3:GetBucketLocation'
+                Resource: !GetAtt DataBucket.Arn
+
+  # ==========================================
+  # 4. IAM ROLE FOR LAMBDA
+  # ==========================================
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                  - 's3:DeleteObject'
+                Resource: !Sub '${DataBucket.Arn}/*'
+        - PolicyName: SNSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'sns:Publish'
+                Resource: !Ref ErrorTopic
+
+  # ==========================================
+  # 5. LAMBDA FUNCTION
+  # ==========================================
+  IngestionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-ingestor'
+      Handler: 'app.lambda_handler'
+      Runtime: 'python3.9'
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              print("Placeholder: Code will be updated via CLI")
+              return {"statusCode": 200, "body": "Placeholder"}
+      MemorySize: 128
+      Timeout: 60
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          SNOWFLAKE_ACCOUNT: !Ref SnowflakeAccount
+          SNOWFLAKE_USER: !Ref SnowflakeUser
+          SNOWFLAKE_ROLE: !Ref SnowflakeRole
+          SNOWFLAKE_WAREHOUSE: !Ref SnowflakeWarehouse
+          SNOWFLAKE_DATABASE: !Ref SnowflakeDatabase
+          SNS_TOPIC_ARN: !Ref ErrorTopic
+          HISTORY_PATH_STORES: 'history/stores/'
+          HISTORY_PATH_TRANSACTIONS: 'history/transactions/'
+
+  # ==========================================
+  # 6. LAMBDA TRIGGER PERMISSION (S3)
+  # ==========================================
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt IngestionLambda.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: 's3.amazonaws.com'
+      SourceArn: !GetAtt DataBucket.Arn
+
+Outputs:
+  BucketName:
+    Description: 'S3 Bucket Name'
+    Value: !Ref DataBucket
+  SnowflakeRoleArn:
+    Description: 'IAM Role ARN for Snowflake Storage Integration'
+    Value: !GetAtt SnowflakeAccessRole.Arn
+  SnsTopicArn:
+    Description: 'SNS Topic ARN for Errors'
+    Value: !Ref ErrorTopic
