@@ -1,4 +1,4 @@
-# Retail Data Pipeline 🚀
+# Retail Data Pipeline
 
 A robust, Serverless data pipeline designed to ingest, validate, and process retail data scale using **AWS** and **Snowflake**.
 
@@ -7,7 +7,7 @@ A robust, Serverless data pipeline designed to ingest, validate, and process ret
 ![Snowflake](https://img.shields.io/badge/Snowflake-Data%20Cloud-blue)
 ![Python](https://img.shields.io/badge/Python-3.9-yellow)
 
-## 📋 Overview
+## Overview
 
 This project implements an ELT (Extract, Load, Transform) pattern:
 1.  **Extract**: Partners upload CSV files (`Sales` or `Stores`) to an S3 Inbox.
@@ -15,23 +15,11 @@ This project implements an ELT (Extract, Load, Transform) pattern:
 3.  **Transform**: **dbt** (Data Build Tool) cleans, deduplicates, and models the data into analytical tables.
 
 ### Architecture Flow
-```mermaid
-graph LR
-    User([Partner]) -->|Upload CSV| S3[S3 Bucket: Inbox]
-    S3 -->|Trigger| Lambda[AWS Lambda: Ingestor]
-    Lambda -->|COPY INTO| Snow[Snowflake: RAW Schema]
-    Lambda -->|Move File| Archive[S3 Bucket: History]
-    Lambda -.->|Error| SNS[AWS SNS: Alerts]
-    
-    subgraph Snowflake
-        Snow -->|dbt run| Stage[Stage Schema]
-        Stage -->|dbt run| Marts[Analytics Schema]
-    end
-```
+![Architecture Diagram](assets/architecture_diagram.png)
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 *   **AWS CLI** installed and configured (`v2+`).
 *   **Snowflake Account** (Standard or higher).
@@ -40,7 +28,7 @@ graph LR
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Configure AWS Credentials
 This project uses a specific AWS Profile for security. Add this to your `~/.aws/credentials`:
@@ -69,13 +57,13 @@ cd scripts/
 
 ---
 
-## 💻 Usage
+## Usage
 
 To process data, simply upload a file to the S3 `inbox/` folder.
 
 **Upload Sales Data:**
 ```bash
-aws s3 cp test_data/sales_20250111.csv s3://<YOUR_BUCKET_NAME>/inbox/ --profile snowflake-project
+aws s3 cp test_data/sales_20250111.csv s3://<BUCKET_NAME>/inbox/ --profile snowflake-project
 ```
 
 **What happens next?**
@@ -87,7 +75,7 @@ aws s3 cp test_data/sales_20250111.csv s3://<YOUR_BUCKET_NAME>/inbox/ --profile 
 
 ---
 
-## 🔧 Engineering Decisions
+## Engineering Decisions
 
 ### Handling "Optional Headers"
 *   **Problem**: Files may or may not have headers.
@@ -100,7 +88,7 @@ aws s3 cp test_data/sales_20250111.csv s3://<YOUR_BUCKET_NAME>/inbox/ --profile 
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 /
