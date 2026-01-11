@@ -13,6 +13,10 @@ Parameters:
     Type: String
     Default: 'LAMBDA_USER'
     Description: 'User for Lambda to connect to Snowflake.'
+  SnowflakePassword:
+    Type: String
+    NoEcho: true
+    Description: 'Password for Snowflake User.'
   SnowflakeRole:
     Type: String
     Default: 'SYSADMIN'
@@ -32,6 +36,7 @@ Resources:
   # ==========================================
   DataBucket:
     Type: AWS::S3::Bucket
+    DependsOn: LambdaInvokePermission
     Properties:
       BucketName: !Sub '${ProjectName}-${AWS::AccountId}'
       PublicAccessBlockConfiguration:
@@ -69,7 +74,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root' # Will be restricted to Snowflake User ARN later
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: 'sts:AssumeRole'
       Policies:
         - PolicyName: S3Access
@@ -80,12 +85,12 @@ Resources:
                 Action:
                   - 's3:GetObject'
                   - 's3:GetObjectVersion'
-                Resource: !Sub '${DataBucket.Arn}/*'
+                Resource: !Sub 'arn:aws:s3:::${ProjectName}-${AWS::AccountId}/*'
               - Effect: Allow
                 Action:
                   - 's3:ListBucket'
                   - 's3:GetBucketLocation'
-                Resource: !GetAtt DataBucket.Arn
+                Resource: !Sub 'arn:aws:s3:::${ProjectName}-${AWS::AccountId}'
 
   # ==========================================
   # 4. IAM ROLE FOR LAMBDA
@@ -113,7 +118,7 @@ Resources:
                   - 's3:GetObject'
                   - 's3:PutObject'
                   - 's3:DeleteObject'
-                Resource: !Sub '${DataBucket.Arn}/*'
+                Resource: !Sub 'arn:aws:s3:::${ProjectName}-${AWS::AccountId}/*'
         - PolicyName: SNSAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -131,18 +136,17 @@ Resources:
       FunctionName: !Sub '${ProjectName}-ingestor'
       Handler: 'app.lambda_handler'
       Runtime: 'python3.9'
-      Code:
-        ZipFile: |
-          def lambda_handler(event, context):
-              print("Placeholder: Code will be updated via CLI")
-              return {"statusCode": 200, "body": "Placeholder"}
+      Code: ../../lambda_functions/ingestor/
       MemorySize: 128
       Timeout: 60
       Role: !GetAtt LambdaExecutionRole.Arn
+      Layers:
+        - !Ref SnowflakeLayer
       Environment:
         Variables:
           SNOWFLAKE_ACCOUNT: !Ref SnowflakeAccount
           SNOWFLAKE_USER: !Ref SnowflakeUser
+          SNOWFLAKE_PASSWORD: !Ref SnowflakePassword
           SNOWFLAKE_ROLE: !Ref SnowflakeRole
           SNOWFLAKE_WAREHOUSE: !Ref SnowflakeWarehouse
           SNOWFLAKE_DATABASE: !Ref SnowflakeDatabase
@@ -159,7 +163,20 @@ Resources:
       FunctionName: !GetAtt IngestionLambda.Arn
       Action: 'lambda:InvokeFunction'
       Principal: 's3.amazonaws.com'
-      SourceArn: !GetAtt DataBucket.Arn
+      SourceArn: !Sub 'arn:aws:s3:::${ProjectName}-${AWS::AccountId}'
+
+  # ==========================================
+  # 7. SNOWFLAKE LAYER
+  # ==========================================
+  SnowflakeLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-snowflake-layer'
+      Description: 'Snowflake Connector for Python 3.9'
+      Content: ../../layers/snowflake_layer/
+      CompatibleRuntimes:
+        - python3.9
+
 
 Outputs:
   BucketName:

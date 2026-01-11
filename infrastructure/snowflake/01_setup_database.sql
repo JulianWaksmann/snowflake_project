@@ -3,17 +3,19 @@
 -- Goal: Initial Snowflake configuration
 -- ==========================================
 
+-- 0. Set Role (Critical for permissions)
+USE ROLE SYSADMIN;
+
 -- 1. Create Database
 CREATE DATABASE IF NOT EXISTS RETAIL_DB;
 USE DATABASE RETAIL_DB;
 
 -- 2. Create Schemas (Data Layers)
-CREATE SCHEMA IF NOT EXISTS RAW;       -- Bronze Layer (Raw data as it arrives)
-CREATE SCHEMA IF NOT EXISTS STAGE;     -- Silver Layer (Cleaned and deduplicated data)
-CREATE SCHEMA IF NOT EXISTS ANALYTICS; -- Gold Layer (Final reports)
+CREATE SCHEMA IF NOT EXISTS RAW;
+CREATE SCHEMA IF NOT EXISTS STAGE;
+CREATE SCHEMA IF NOT EXISTS ANALYTICS;
 
--- 3. Create Warehouse (Compute)
--- Using X-SMALL to keep costs low during development
+-- 3. Create Warehouse
 CREATE WAREHOUSE IF NOT EXISTS COMPUTE_WH
     WITH WAREHOUSE_SIZE = 'X-SMALL'
     AUTO_SUSPEND = 60
@@ -28,23 +30,19 @@ CREATE OR REPLACE FILE FORMAT RAW.CSV_FORMAT
     NULL_IF = ('NULL', 'null', '')
     FIELD_OPTIONALLY_ENCLOSED_BY = '"';
 
--- ==========================================
--- NOTE: The following steps require the AWS Role ARN
--- Will be completed once AWS infrastructure is configured (Phase 2)
--- ==========================================
-
 /*
--- 5. Storage Integration (Allows Snowflake to securely read from S3)
-CREATE STORAGE INTEGRATION s3_int
+-- 5. Storage Integration
+CREATE STORAGE INTEGRATION IF NOT EXISTS s3_int
   TYPE = EXTERNAL_STAGE
   STORAGE_PROVIDER = 'S3'
   ENABLED = TRUE
-  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::XXXXXXXXXXXX:role/snowflake_access_role' -- <-- COMPLETE WITH ARN
-  STORAGE_ALLOWED_LOCATIONS = ('s3://my-retail-inbox-bucket/');
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::554074173959:role/retail-data-pipeline-snowflake-role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://retail-data-pipeline-554074173959/');
 
--- 6. External Stage (Points to the bucket using the integration)
-CREATE STAGE RAW.INBOX_STAGE
-  URL = 's3://my-retail-inbox-bucket/inbox/'
+-- 6. External Stage
+CREATE STAGE IF NOT EXISTS RAW.INBOX_STAGE
+  URL = 's3://retail-data-pipeline-554074173959/inbox/'
   STORAGE_INTEGRATION = s3_int
   FILE_FORMAT = RAW.CSV_FORMAT;
 */
+-- Remove comments above and execute!
