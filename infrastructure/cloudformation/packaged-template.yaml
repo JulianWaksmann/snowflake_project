@@ -130,7 +130,7 @@ Resources:
       Runtime: python3.9
       Code:
         S3Bucket: retail-data-pipeline-deployments-554074173959
-        S3Key: dfca6900933980787534934959d067df
+        S3Key: ed417f493b82002ee44bf00729fa29da
       MemorySize: 128
       Timeout: 60
       Role:

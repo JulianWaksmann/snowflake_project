@@ -2,19 +2,20 @@ USE ROLE SYSADMIN;
 USE DATABASE RETAIL_DB;
 USE SCHEMA RAW;
 
--- 1. Stores Table
-CREATE TABLE IF NOT EXISTS RAW.STORES (
+-- 1. STORES Raw Table
+CREATE OR REPLACE TABLE RAW.STORES (
     store_group VARCHAR,
     store_token VARCHAR,
     store_name  VARCHAR,
     
     -- Metadata columns
     source_filename VARCHAR,
+    batch_date DATE,
     loaded_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );
 
--- 2. Sales Table
-CREATE TABLE IF NOT EXISTS RAW.SALES (
+-- 2. SALES Raw Table
+CREATE OR REPLACE TABLE RAW.SALES (
     store_token      VARCHAR,
     transaction_id   VARCHAR,
     receipt_token    VARCHAR,
@@ -25,5 +26,6 @@ CREATE TABLE IF NOT EXISTS RAW.SALES (
     
     -- Metadata columns
     source_filename VARCHAR,
+    batch_date DATE,
     loaded_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );

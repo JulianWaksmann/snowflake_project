@@ -40,6 +40,12 @@ aws cloudformation package \
 read -s -p "Enter Snowflake Password for LAMBDA_USER: " SNOWFLAKE_PASSWORD
 echo ""
 
+if [ -z "$SNOWFLAKE_PASSWORD" ]; then
+    echo -e "\033[0;31mError: Password cannot be empty!\033[0m"
+    exit 1
+fi
+
+
 # 3. Deploy
 echo "3. Deploying Stack..."
 aws cloudformation deploy \

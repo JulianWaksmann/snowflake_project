@@ -3,7 +3,9 @@ import logging
 import os
 import boto3
 import snowflake.connector
+import re
 from datetime import datetime
+import snowflake.connector
 
 # Configure Logging
 logger = logging.getLogger()
@@ -74,18 +76,24 @@ def lambda_handler(event, context):
 
                 logger.info(f"Processing File [{processed_count + 1}]: s3://{bucket_name}/{file_key}")
                 
-                # Determine File Type based on filename
+                # Determine File Type and Extract Date (YYYYMMDD)
                 filename = os.path.basename(file_key).lower()
-                target_table = None
-                file_type = None
+                
+                # Regex to find date in filename (e.g., _20250110)
+                date_match = re.search(r'(\d{8})', filename)
+                batch_date_str = date_match.group(1) if date_match else datetime.now().strftime('%Y%m%d')
+                
+                # Format for Snowflake Date Literal (YYYY-MM-DD)
+                batch_date_sql = f"'{batch_date_str[:4]}-{batch_date_str[4:6]}-{batch_date_str[6:]}'"
 
                 if 'store' in filename:
                     # Ingest Stores Data
-                    # Schema: store_group, store_token, store_name, source_filename
+                    file_type = 'stores'
+                    # Schema: store_group, store_token, store_name, source_filename, batch_date
                     sql = f"""
-                    COPY INTO RAW.STORES (store_group, store_token, store_name, source_filename)
+                    COPY INTO RAW.STORES (store_group, store_token, store_name, source_filename, batch_date)
                     FROM (
-                        SELECT $1, $2, $3, metadata$filename 
+                        SELECT $1, $2, $3, metadata$filename, {batch_date_sql}
                         FROM @RAW.INBOX_STAGE/{os.path.basename(file_key)}
                     )
                     FILE_FORMAT = (FORMAT_NAME = RAW.CSV_FORMAT)
@@ -94,8 +102,8 @@ def lambda_handler(event, context):
                     
                 elif 'sale' in filename:
                     # Ingest Sales Data
-                    # Handle variable column count (SourceID optional) by mapping columns dynamically
-                    # Target Schema: store_token, transaction_id, receipt_token, transaction_time, amount, source_id, user_role, source_filename
+                    file_type = 'transactions'
+                    # Target Schema: store_token, transaction_id, receipt_token, transaction_time, amount, source_id, user_role, source_filename, batch_date
                     sql = f"""
                     COPY INTO RAW.SALES (
                         store_token, 
@@ -105,14 +113,16 @@ def lambda_handler(event, context):
                         amount, 
                         source_id, 
                         user_role, 
-                        source_filename
+                        source_filename,
+                        batch_date
                     )
                     FROM (
                         SELECT 
                             $1, $2, $3, $4, $5, 
                             CASE WHEN $7 IS NULL THEN NULL ELSE $6 END, -- SourceID (Null if 6 cols)
                             CASE WHEN $7 IS NULL THEN $6 ELSE $7 END, -- User Role (Pos 6 or 7)
-                            metadata$filename
+                            metadata$filename,
+                            {batch_date_sql} -- Injected Date Literal
                         FROM @RAW.INBOX_STAGE/{os.path.basename(file_key)}
                     )
                     FILE_FORMAT = (FORMAT_NAME = RAW.CSV_FORMAT ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
