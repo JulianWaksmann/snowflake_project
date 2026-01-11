@@ -30,7 +30,6 @@ CREATE OR REPLACE FILE FORMAT RAW.CSV_FORMAT
     NULL_IF = ('NULL', 'null', '')
     FIELD_OPTIONALLY_ENCLOSED_BY = '"';
 
-/*
 -- 5. Storage Integration
 CREATE STORAGE INTEGRATION IF NOT EXISTS s3_int
   TYPE = EXTERNAL_STAGE
@@ -44,5 +43,3 @@ CREATE STAGE IF NOT EXISTS RAW.INBOX_STAGE
   URL = 's3://retail-data-pipeline-554074173959/inbox/'
   STORAGE_INTEGRATION = s3_int
   FILE_FORMAT = RAW.CSV_FORMAT;
-*/
--- Remove comments above and execute!
