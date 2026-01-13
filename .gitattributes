@@ -1,0 +1,8 @@
+# Force GitHub to see this as a Python project
+# We mark SQL and YAML as vendored (non-code) for statistics purpose
+
+*.sql linguist-vendored
+*.yml linguist-vendored
+*.yaml linguist-vendored
+*.json linguist-vendored
+*.md linguist-documentation

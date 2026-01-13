@@ -9,15 +9,26 @@ venv/
 # Snowflake / dbt
 # profiles.yml (Keep commented if checking in a template, or uncomment to ignore)
 dbt_modules/
+# Python Distribution / Builds
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# dbt
+dbt_packages/
+analysis/
 target/
 logs/
 
-# IDE
-.vscode/
-.idea/
+# Serverless / Lambda
+layers/
+.serverless/
+.aws-sam/
 
-# OS
+# OS / IDE
 .DS_Store
 Thumbs.db
 packaged-template.yaml
 .user.yml
+*.zip

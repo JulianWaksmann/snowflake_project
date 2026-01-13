@@ -31,13 +31,9 @@ This project implements an ELT (Extract, Load, Transform) pattern:
 ## Getting Started
 
 ### 1. Configure AWS Credentials
-This project uses a specific AWS Profile for security. Add this to your `~/.aws/credentials`:
-
-```ini
-[snowflake-project]
-aws_access_key_id = <YOUR_ACCESS_KEY>
-aws_secret_access_key = <YOUR_SECRET_KEY>
-region = us-east-1
+Ensure you have an AWS Profile named `snowflake-project` configured in your environment.
+```bash
+aws configure --profile snowflake-project
 ```
 
 ### 2. Setup Snowflake Environment
