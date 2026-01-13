@@ -75,6 +75,49 @@ aws s3 cp test_data/sales_20250111.csv s3://<BUCKET_NAME>/inbox/ --profile snowf
 
 ---
 
+---
+---
+
+## Transformation Strategy (dbt)
+
+We leverage **dbt** for scalable, modular transformations. A key architectural decision was to favor **Incremental Tables** over Views to handle potentially massive datasets efficiently.
+
+### 1. Stage Layer (Cleaning & Deduplication)
+*   **Materialization**: `incremental` (Table).
+*   **Strategy**: **UPSERT**.
+*   **Key**: `store_token` (Stores) / `store_token + transaction_id` (Sales).
+*   **Logic**:
+    *   We query `RAW` filtering only data that arrived *after* the last run (`loaded_at > max(this.loaded_at)`).
+    *   This ensures we process only the "delta", making the pipeline extremely fast and cost-effective.
+
+### 2. Marts Layer (Analytics)
+*   **Materialization**: `incremental`.
+*   **Strategy**: **Lookback Window**.
+*   **Logic**:
+    *   Since Marts accumulate metrics (sums, counts), a simple upsert of new rows would corrupt the totals.
+    *   Instead, we re-process a safety window (last 7 days) to ensure any late-arriving data or corrections are correctly aggregated into the daily totals.
+
+---
+
+### 4. Orchestration (Daily Run)
+In a production environment, you would schedule the transformation job to run after data ingestion.
+*   **Command**: `dbt run` (Processes only new data).
+*   **Production Evolution**:
+    *   **AWS ECS (Fargate)**: Run dbt in a container. This effectively decouples the "Runner" from any specific server, allowing for Event-Driven execution (S3 -> Lambda -> ECS Task) if real-time transformations are needed.
+
+---
+
+## Future Improvements & Production Readiness
+1.  **Security Hardening**:
+    *   Migrate credentials from Environment Variables to **AWS Secrets Manager**.
+    *   Implement **PrivateLink** for secure S3-Snowflake communication without traversing the public internet.
+2.  **Infrastructure as Code**:
+    *   Migrate from Bash/CloudFormation to **AWS CDK (TypeScript/Python)**. It allows defining infrastructure using real programming languages, offering better abstraction and testing than raw YAML.
+3.  **Observability**:
+    *   Implement **Data Contracts** to catch schema changes at the source.
+
+---
+
 ## Engineering Decisions
 
 ### Handling "Optional Headers"

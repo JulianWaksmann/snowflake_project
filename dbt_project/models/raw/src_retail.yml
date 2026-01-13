@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: retail
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: RAW
+    tables:
+      - name: sales
+        description: "Raw sales transactions data ingested from S3. Contains potential duplicates and unformatted fields (e.g. amount with '$')."
+        columns:
+          - name: store_token
+            tests:
+              - not_null
+          - name: transaction_id
+            tests:
+              - not_null
+          - name: loaded_at
+            description: "Timestamp when the row was loaded into Snowflake. critical for deduplication."
+
+      - name: stores
+        description: "Raw stores metadata. Updates are additive."
+        columns:
+          - name: store_token
+            tests:
+              - not_null
+              - unique
+          - name: store_group
+          - name: store_name
